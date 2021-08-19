@@ -97,7 +97,7 @@ $ tree -L 2  .
 ├── api
 │   ├── README
 │   ├── except.txt
-│   ├── go1.1.txt
+│   ├── go1.1. 入门.txt
 │   ├── ...
 │   ├── go1.9.txt
 │   ├── go1.txt
@@ -808,7 +808,7 @@ var name complex128 = complex(x, y)
 **复数的定义和运算：**
 
 ```go
-var x complex128 = complex(1, 2) // 1+2i
+var x complex128 = complex(1, 2) // 1. 入门+2i
 var y complex128 = complex(3, 4) // 3+4i
 fmt.Println(x + y)               // "(4+6i)" 加法运算 
 fmt.Println(x * y)               // "(-5+10i)"  惩罚运算
@@ -1071,7 +1071,7 @@ fmt.Println(a == d) // 编译错误：无法比较 [2]int == [3]int
 var array [4][2]int
 // 使用数组字面量来声明并初始化一个二维整型数组
 array = [4][2]int{{10, 11}, {20, 21}, {30, 31}, {40, 41}}
-// 声明并初始化数组中索引为 1 和 3 的元素
+// 声明并初始化数组中索引为 1. 入门 和 3 的元素
 array = [4][2]int{1: {20, 21}, 3: {40, 41}}
 // 声明并初始化数组中指定的元素
 array = [4][2]int{1: {0: 20}, 3: {1: 41}}
@@ -1099,9 +1099,9 @@ func main() {
 	var intarr [6]int = [6]int{3,4,4,1,2,7}
 	// 根据上面的数组，构建一个切片
 	// 切片的长度是不固定的，所以不需要写切片长度
-	var slice0 []int = intarr[1:3] // 这个切面是针对数组intarr的切片，其切取元素位置范围为[1, 3)
+	var slice0 []int = intarr[1:3] // 这个切面是针对数组intarr的切片，其切取元素位置范围为[1. 入门, 3)
 	// 输出数组
-	fmt.Println("数组为：", intarr) // [3 4 4 1 2 7]
+	fmt.Println("数组为：", intarr) // [3 4 4 1. 入门 2 7]
 	fmt.Println("切片为：", slice0) // [4 4]
 	fmt.Println("切片的容量为：", cap(slice0)) // 5
 }
@@ -1790,7 +1790,7 @@ func getSum() func (int) int {
 
 func main() {
 	sumF := getSum()
-	sumF(1) // 1
+	sumF(1) // 1. 入门
 	sumF(2) // 3
 	sumF(3) // 6
 }
@@ -1994,7 +1994,7 @@ var s = "hello 世界"
 for i, value := range s {
   fmt.Printf("索引为 %d, 值为%c", str[i])
 }
-// 结果为 索引为 0, 值为h索引为 1, 值为e索引为 2, 值为l索引为 3, 值为l索引为 4, 值为o索引为 5, 值为 索引为 6, 值为世索引为 9, 值为界
+// 结果为 索引为 0, 值为h索引为 1. 入门, 值为e索引为 2, 值为l索引为 3, 值为l索引为 4, 值为o索引为 5, 值为 索引为 6, 值为世索引为 9, 值为界
 // for range 针对的是字符进行遍历的
 ```
 
@@ -2016,13 +2016,13 @@ for i := 1; i <= 100; i ++ {
 ### goto语句（不建议使用）
 
 ```go
-fmt.Println("1")
+fmt.Println("1. 入门")
 goto label1
 fmt.Println("2")
 fmt.Println("3")
 label1:
 fmt.Println("4")
-// 执行结果  1 4
+// 执行结果  1. 入门 4
 ```
 
 ## 包 package
@@ -2051,12 +2051,12 @@ fmt.Println("4")
 
 ```go
 // 单行导入
-import "包 1 的路径"
+import "包 1. 入门 的路径"
 import "包 2 的路径"
 
 // 多行导入
 import (
-    "包 1 的路径"
+    "包 1. 入门 的路径"
     "包 2 的路径"
 )
 
@@ -2320,29 +2320,17 @@ type MyInterface interface {
 
 
 
-
-
-
-
-# ----------
-
-
-
-
-
-
-
-## 管理module
+## module
 
 在golang中，多个方法代码会被分组到package中，而package会被分组为module中。
 
-`go.mod`文件所在的目录会被识别为一个go moudle，在`go.mod`中，可以定义go语言环境、依赖模块等信息。依赖模块可以使第一方的模块，也可以是第三方依赖模块，第三方模块可以在go的包管理网站上查询并使用 <https://pkg.go.dev/>。
+`go.mod`文件所在的目录会被识别为一个go moudle，在`go.mod`中，可以定义go语言环境、依赖模块等信息。依赖模块可以使第一方的模块，也可以是第三方依赖模块，第三方模块可以在go的包管理网站上查询并使用 https://pkg.go.dev/。
 
 当module有新的代码需要发布时，需要对module进行版本发布。
 
 ### 创建module
 
-```shell
+```
 # 创建模块文件夹
 $ mkdir hello && cd hello
 # 生成模块
@@ -2355,7 +2343,8 @@ drwxr-xr-x  6 yangsx  staff  192 Jul 30 10:41 ..
 ```
 
 生成的go.mod信息如下：
-```go
+
+```
 // module的名称
 module example.com/hello
 // go语言环境的版本
@@ -2368,26 +2357,27 @@ go 1.16
 
 创建`sayhello` package：
 
-```shell
+```
 $ mkdir sayhello && cd sayhello
 $ touch sayhello.go
 ```
 
 在package下增加golang源码文件`sayhello.go`，并定义一个方法：
-```go
+
+```
 package hello
 
 import "fmt" // 导入系统模块
 
 func SayHello(name string) {
-	// 方法大写字母代表此方法是公开的
-	fmt.Println("Hello" + name)
+  // 方法大写字母代表此方法是公开的
+  fmt.Println("Hello" + name)
 }
 ```
 
 ### 创建模块入口main
 
-```shell
+```
 # 切换路径到模块根目录
 $ pwd
 /Users/yangsx/GoLandProjects/notes-golang/hello
@@ -2395,4 +2385,8 @@ $ pwd
 ```
 
 ### 为module 添加第三方依赖包
+
+
+
+
 

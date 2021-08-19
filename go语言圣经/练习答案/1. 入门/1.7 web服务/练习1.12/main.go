@@ -38,8 +38,8 @@ func main() {
 		var iRCycles int
 		rCycles := request.URL.Query().Get("cycles")
 		if rCycles != "" {
-			tmp, err := strconv.Atoi(rCycles)
-			iRCycles = tmp
+			var err error
+			iRCycles, err = strconv.Atoi(rCycles)
 			if err != nil {
 				_, _ = fmt.Fprintf(writer, "参数cycles有误,必须为字符串类型")
 				return
