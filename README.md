@@ -476,16 +476,198 @@ func main() {
 // 在一个 const 声明语句中，在第一个声明的常量所在的行，iota 将会被置为 0，然后在每一个有常量声明的行加一。
 ```
 
-将枚举转换为字符串（使用switch语句）:
+## 数据类型
+
+### 值类型和引用类型
+
+#### 值类型
+
+这些类型的变量直接指向存在内存中的值，**值类型的变量的值存储在栈中**。当使用等号`=`将一个变量的值赋给另一个变量时，如` j = i `,实际上是在内存中将 `i` 的值进行了拷贝。可以通过 `&i `获取变量 `i` 的内存地址。
+
+在golang中，是值类型的有：
+
+- 数字类型
+- 布尔类型
+- 字符串类型
+- 数组：数组也存放在栈空间中，这个与Java不同
+- 结构体：因为是值传递，所以在方法之间传递会进行值复制，如果结构体较大，需要使用指针
+
+#### 引用类型
+
+引用类型拥有更复杂的存储结构:
+
+1. 通过make创建并分配内存 
+2. 初始化一系列属性：指针、长度、哈希分布、数据队列等。一个引用类型的变量`r1`存储的是`r1`的值所在的内存地址（数字），或内存地址中第一个元素所在的位置，这个内存地址被称之为指针，这个指针实际上也被存在另外的某一个变量中。
+
+在go语言中，是引用类型的有：
+
+- 指针
+- 管道 channel
+- 接口 interface
+- map
+- 函数 function
+
+#### 值类型与引用类型区别
+
+**值类型在传递参数时，进行值拷贝，引用类型则是引用拷贝。**主要是赋值的区别。
+
+#### 类型零值
+
+零值又称为默认值，在go中，每种类型都有对应的零值，其中引用类型的零值都为`nil`：
+
+| 数据类型                                                     | 零值                       |
+| ------------------------------------------------------------ | -------------------------- |
+| 数字类型，包含整型、浮点型、复数                             | 0                          |
+| 布尔型                                                       | false                      |
+| 字符串                                                       | ""                         |
+| 结构体                                                       | 结构体中的每个字段都是零值 |
+| 引用类型：`slice`， `pointer`，`map`，`channel`，`function`，`interface` | `nil`                      |
+
+#### nil详
+
+在Go语言中，布尔类型的零值（初始值）为 false，数值类型的零值为 0，字符串类型的零值为空字符串`""`，而指针、切片、映射、通道、函数和接口的零值则是 `nil`。
+
+> 注意，nil是一个值，像0一样，代表不存在
+
+##### 不是关键字和保留字
+
+因为不是关键字和保留字，只是一个标识符，类似int等，所以可以定义一个名称为`nil`的变量：
 
 ```go
+var nil = errors.New("my god") 
 ```
 
+##### 没有默认类型
 
+```go
+package main
+import (
+    "fmt"
+)
+func main() {
+    fmt.Printf("%T", nil) // .\main.go:9:10: use of untyped nil
+    print(nil)
+}
+```
 
+##### 引用类型的零值(初始值)就是nil
 
+```go
+package main
 
-## 数据类型
+import (
+    "fmt"
+)
+
+func main() {
+    var m map[int]string
+    var ptr *int
+    var c chan int
+    var sl []int
+    var f func()
+    var i interface{}
+    fmt.Printf("%#v\n", m) // map[int]string(nil)
+    fmt.Printf("%#v\n", ptr) // (*int)(nil)
+    fmt.Printf("%#v\n", c) // (chan int)(nil)
+    fmt.Printf("%#v\n", sl) // []int(nil)
+    fmt.Printf("%#v\n", f) // (func())(nil)
+    fmt.Printf("%#v\n", i) // <nil>
+}
+```
+
+##### 不同引用类型的nil值，指针是相同的
+
+```go
+package main
+import (
+    "fmt"
+)
+func main() {
+    var arr []int
+    var num *int
+    fmt.Printf("%p\n", arr) // 0x0
+    fmt.Printf("%p", num) // 0x0
+}
+```
+
+##### 不同引用类型的nil值，占用大小不同
+
+```go
+package main
+import (
+    "fmt"
+    "unsafe"
+)
+func main() {
+    var p *struct{}
+    fmt.Println( unsafe.Sizeof( p ) ) // 8
+    var s []int
+    fmt.Println( unsafe.Sizeof( s ) ) // 24
+    var m map[int]bool
+    fmt.Println( unsafe.Sizeof( m ) ) // 8
+    var c chan string
+    fmt.Println( unsafe.Sizeof( c ) ) // 8
+    var f func()
+    fmt.Println( unsafe.Sizeof( f ) ) // 8
+    var i interface{}
+    fmt.Println( unsafe.Sizeof( i ) ) // 16
+}
+```
+
+##### nil值的比较
+
+直接比较字面量nil，可以比较：
+
+```go
+package main
+import (
+    "fmt"
+)
+func main() {
+    fmt.Println(nil==nil)  // 报错
+}
+```
+
+两个值都为nil的不同类型变量不可比较：
+
+```go
+package main
+import (
+    "fmt"
+)
+func main() {
+    var m map[int]string
+    var ptr *int
+    fmt.Printf(m == ptr) // invalid operation: arr == ptr (mismatched types []int and *int)
+}
+```
+
+两个值为nil的相同类型变量也不可比较：
+
+```go
+package main
+import (
+    "fmt"
+)
+func main() {
+    var s1 []int
+    var s2 []int
+    fmt.Printf(s1 == s2) // invalid operation: s1 == s2 (slice can only be compared to nil)
+}
+```
+
+变量(有可能是nil 或者 非nil)可以与nil值比较：
+
+```go
+package main
+import (
+    "fmt"
+)
+func main() {
+    var s1 []int
+    fmt.Println(s1 == nil) // true
+}
+```
 
 ### 基本数据类型
 
@@ -751,11 +933,7 @@ b2, _ := strconv.ParseBool("e")
 fmt.Println(b2)
 ```
 
-### 派生数据类型
-
-#### 引用零值: nil
-
-
+### 派生数据类型(复合数据类型)
 
 #### 指针
 
@@ -1090,7 +1268,8 @@ slice = [][]int{{10}, {100, 200}}
 map，键值对映射结构，一种元素对（pair）的无序集合，pair 对应一个 key（索引）和一个 value（值），所以这个结构也称为关联数组或字典，这是一种能够快速寻找值的理想结构，给定 key，就可以迅速找到对应的 value
 
 - key不可以重复
-- key的类型不能是：
+- key的类型不能是：`slice`、`map`、`function`
+- value的不做限制
 
 ##### 定义map
 
@@ -1153,6 +1332,212 @@ go没有提供清空map的方法，有两种方法可以清空map：
 - 给变量重新赋予一个新创建的map
 
 #### 结构体
+
+ **结构体的定义只是一种内存布局的描述**，只有当结构体实例化时，才会真正地分配内存。
+
+##### 定义结构体
+
+```go
+type 类型名 struct {
+    字段1 字段1类型
+    字段2 字段2类型
+    …
+}
+```
+
+> type用于自定义类型，定义type可以对结构体进行复用
+
+```go
+type Point struct {
+    X int
+    Y int
+}
+```
+
+###### 同类型变量可将字段放在一行
+
+```go
+type Color struct {
+    R, G, B byte
+}
+```
+
+###### 空结构体，没有意义
+
+```go
+type Ept struct {}
+```
+
+###### 字段类型不受限制
+
+结构体的字段类型不受限制，可以是基本类型，也可以是复合类型，比如函数等：
+
+```go
+// Go program to illustrate the function
+// as a field in Go structure
+package main
+
+import "fmt"
+
+// Finalsalary of function type
+type Finalsalary func(int, int) int
+
+// Creating structure
+type Author struct {
+	name	 string
+	language string
+	Marticles int
+	Pay	 int
+
+	// Function as a field
+	salary Finalsalary
+}
+
+// Main method
+func main() {
+
+	// Initializing the fields
+	// of the structure
+	result := Author{
+		name:	 "Sonia",
+		language: "Java",
+		Marticles: 120,
+		Pay:	 500,
+		salary: func(Ma int, pay int) int {
+			return Ma * pay
+		},
+	}
+
+	// Display values
+	fmt.Println("Author's Name: ", result.name)
+	fmt.Println("Language: ", result.language)
+	fmt.Println("Total number of articles published in May: ", result.Marticles)
+	fmt.Println("Per article pay: ", result.Pay)
+	fmt.Println("Total salary: ", result.salary(result.Marticles, result.Pay))
+}
+```
+
+##### 实例化结构体
+
+###### 基本实例化形式
+
+```go
+type Point struct {
+    X int
+    Y int
+}
+var p Point
+p.X = 10
+p.Y = 20
+```
+
+###### 实例化指针类型结构体(常用)
+
+```go
+type Player struct{
+    Name string
+    HealthPoint int
+    MagicPoint int
+}
+tank := new(Player)
+tank.Name = "Canon"
+tank.HealthPoint = 300
+```
+
+###### 取地址符的实例化(常用)
+
+对结构体进行`&`取地址操作时，视为对该类型进行一次 new 的实例化操作
+
+```go
+type Command struct {
+    Name    string    // 指令名称
+    Var     *int      // 指令绑定的变量
+    Comment string    // 指令的注释
+}
+var version int = 1
+cmd := &Command{}
+cmd.Name = "version"
+cmd.Var = &version
+cmd.Comment = "show version"
+```
+
+##### 初始化结构体
+
+###### 键值类型初始化
+
+```go
+type People struct {
+    name  string
+    child *People
+}
+relation := &People{
+    name: "爷爷",
+    child: &People{
+        name: "爸爸",
+        child: &People{
+                name: "我",
+        },
+    },
+}
+```
+
+###### 多值列表初始化
+
+1. 字段顺序要保持一致
+2. 所有字段必须要初始化
+
+```go
+package main
+
+import _ "fmt"
+
+func main() {
+	type People struct {
+		name  string
+		child *People
+	}
+	relation := &People{
+		"爷爷",
+		&People{
+			"爸爸",
+			&People{
+				name: "我",
+			},
+		},
+	}
+}
+```
+
+###### 匿名结构体的初始化
+
+```go
+package main
+import (
+    "fmt"
+)
+// 打印消息类型, 传入匿名结构体
+func printMsgType(msg *struct {
+    id   int
+    data string
+}) {
+    // 使用动词%T打印msg的类型
+    fmt.Printf("%T\n", msg)
+}
+func main() {
+    // 实例化一个匿名结构体
+    msg := &struct {  // 定义部分
+        id   int
+        data string
+    }{  // 值初始化部分
+        1024,
+        "hello",
+    }
+    printMsgType(msg)
+}
+
+```
+
+
 
 #### 管道
 
@@ -1924,9 +2309,14 @@ type MyInterface interface {
   now := time.Now()
   ```
 
-- 
 
 
+
+## 标准库
+
+### encoding/json json处理
+
+###  
 
 
 
