@@ -20,9 +20,34 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Printf("%d issues:\n", result.TotalCount)
+
+	// 按照日期分类
+	aYearAgoDate := time.Now().AddDate(-1, 0, 0)
+	aMonthAgoDate := time.Now().AddDate(0, -1, 0)
+	dateItem := make(map[string][]Issue)
+	dateItem["一年前"], dateItem["最近一年"], dateItem["最近一个月"] = make([]Issue, 0), make([]Issue, 0), make([]Issue, 0)
+
 	for _, item := range result.Items {
-		fmt.Printf("#%-5d %9.9s %.55s\n",
-			item.Number, item.User.Login, item.Title)
+		// 一年前
+		if item.CreatedAt.Before(aYearAgoDate) {
+			dateItem["一年前"] = append(dateItem["一年前"], *item)
+		} else { // 最近一年
+			dateItem["最近一年"] = append(dateItem["最近一年"], *item)
+		}
+
+		// 最近一个月
+		if item.CreatedAt.After(aMonthAgoDate) {
+			dateItem["最近一个月"] = append(dateItem["最近一个月"], *item)
+		}
+	}
+
+	for s, issues := range dateItem {
+		fmt.Printf("%s:\n", s)
+		for _, item := range issues {
+			fmt.Printf("#%-5d %9.9s %.55s\n",
+				item.Number, item.User.Login, item.Title)
+		}
+		fmt.Println()
 	}
 }
 
