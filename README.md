@@ -2584,7 +2584,138 @@ func main() {
 
 ### 使用`encoding/json`操作json
 
+#### 序列化与反序列化
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+)
+
+type Movie struct {
+	Title  string // 只有导出的结构体才会被编码，必须使用大写字母开头
+	Year   int    `json:"released"`        // 结构体成员Tag。  类似注解，代表 Year 这个字段，转换为json时，使用 released
+	Color  bool   `json:"color,omitempty"` // omitempty表示，如果该成员值为零值，则忽略该json字段
+	Actors []string
+}
+
+func main() {
+	var movies []Movie = []Movie{
+		{Title: "Casablanca", Year: 1942, Color: false, Actors: []string{"Humphrey Bogart", "Ingrid Bergman"}},
+		{Title: "Cool Hand Luke", Year: 1967, Color: true, Actors: []string{"Paul Newman"}},
+		{Title: "Bullitt", Year: 1968, Color: true, Actors: []string{"Steve McQueen", "Jacqueline Bisset"}},
+	}
+
+	// 序列化
+	//jsonBytes, err := json.Marshal(movies)
+	jsonBytes, err := json.MarshalIndent(movies, "", "    ") //格式化
+	if err != nil {
+		log.Fatalf("解析失败, %v", err)
+		return
+	}
+
+	fmt.Printf("%s\n\n", jsonBytes)
+
+	// 反序列化
+	newMovie := make([]Movie, 0)
+	err = json.Unmarshal(jsonBytes, &newMovie)
+	if err != nil {
+		return
+	}
+	fmt.Printf("%#v\n\n", newMovie)
+}
+```
+
+#### 日期格式化解决方案
+
+**方式一：**通过类型别名自定义时间类型，并重写JSON序列化方法
+
+```go
+type JsonTime time.Time
+
+// 实现它的json序列化方法
+func (this JsonTime) MarshalJSON() ([]byte, error) {
+	var stamp = fmt.Sprintf("\"%s\"", time.Time(this).Format("2006-01-02 15:04:05"))
+	return []byte(stamp), nil
+}
+
+type Student1 struct {
+	Name  string   `json:"name"`
+	Brith JsonTime `json:"brith"`
+}
+
+func main() {
+
+	stu1 := Student1{
+		Name:  "qiangmzsx",
+		Brith: JsonTime(time.Date(1993, 1, 1, 20, 8, 23, 28, time.Local)),
+	}
+	b1, err := json.Marshal(stu1)
+	if err != nil {
+		println(err)
+	}
+
+	println(string(b1)) //{"name":"qiangmzsx","brith":"1993-01-01 20:08:23"}
+}
+
+```
+
+
+
 ### 使用`encoding/xml`操作xml
+
+#### 序列化与反序列化
+
+```go
+package main
+
+import (
+	"encoding/xml"
+	"fmt"
+	"log"
+)
+
+type Movie struct {
+	Title  string // 只有导出的结构体才会被编码，必须使用大写字母开头
+	Year   int    `xml:"released"`        // 结构体成员Tag。  类似注解，代表 Year 这个字段，转换为json时，使用 released
+	Color  bool   `xml:"color,omitempty"` // omitempty表示，如果该成员值为零值，则忽略该xml字段
+	Actors []string
+}
+
+func main() {
+	var movies []Movie = []Movie{
+		{Title: "Casablanca", Year: 1942, Color: false, Actors: []string{"Humphrey Bogart", "Ingrid Bergman"}},
+		{Title: "Cool Hand Luke", Year: 1967, Color: true, Actors: []string{"Paul Newman"}},
+		{Title: "Bullitt", Year: 1968, Color: true, Actors: []string{"Steve McQueen", "Jacqueline Bisset"}},
+	}
+
+	// 序列化
+	xmlBytes, err := xml.MarshalIndent(movies, "", "    ") //格式化
+	if err != nil {
+		log.Fatalf("解析失败, %v", err)
+		return
+	}
+
+	fmt.Printf("%s\n\n", xmlBytes)
+
+	// 反序列化
+	newMovie := make([]Movie, 0)
+	err = xml.Unmarshal(xmlBytes, &newMovie)
+	if err != nil {
+		return
+	}
+	fmt.Printf("%#v\n\n", newMovie)
+}
+```
+
+#### 日期格式化解决方案
+
+参考：[json的日期格式化解决方案](#日期格式化解决方案)
+
+
 
 ## 并发编程
 
@@ -2892,9 +3023,6 @@ func main() {
   ```
 
 
-
-
-## 标准库
 
 ## module
 
