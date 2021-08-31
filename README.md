@@ -2191,7 +2191,198 @@ type MyInterface interface {
 
 ## 错误处理
 
-## 单元测试
+## 命令行编程
+
+### `os.Args`获取命令行参数
+
+`os.Args`切片存储了命令行的所有参数，其中首位元素为命令名称：
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	s, sep := "", ""
+	for _, arg := range os.Args { // 通常使用方式：args := os.Args[1:]
+		s += sep + arg
+		sep = " "
+	}
+	fmt.Println(s)
+}
+```
+
+构建完毕后，执行可执行程序main： `./main a bcd edf `结果如下
+
+```shell
+~/GlandProject/bin/main a bcd edf
+```
+
+### 使用`flag`获取命令行参数
+
+```go
+package main
+
+import "flag"
+import "fmt"
+
+// 定义命令行参数对应的变量，这三个变量都是指针类型
+// 参数1代表命令行参数名称
+// 参数2代表命令行参数默认值
+// 参数3代表输入help命令的提示
+var cliName = flag.String("name", "nick", "Input Your Name")
+var cliAge = flag.Int("age", 28, "Input Your Age")
+var cliGender = flag.String("gender", "male", "Input Your Gender")
+
+// 定义一个值类型的命令行参数变量，在 Init() 函数中对其初始化
+// 因此，命令行参数对应变量的定义和初始化是可以分开的
+var cliFlag int
+func init() {
+    flag.IntVar(&cliFlag, "flagname", 1234, "Just for demo")
+}
+
+func main() {
+    // 把用户传递的命令行参数解析为对应变量的值
+    flag.Parse()
+    
+    // flag.Args() 函数返回没有被解析的命令行参数
+    // func NArg() 函数返回没有被解析的命令行参数的个数
+    fmt.Printf("args=%s, num=%d\n", flag.Args(), flag.NArg())
+    for i := 0; i != flag.NArg(); i++ {
+        fmt.Printf("arg[%d]=%s\n", i, flag.Arg(i))
+    }
+    
+    // 输出命令行参数
+    fmt.Println("name=", *cliName)
+    fmt.Println("age=", *cliAge)
+    fmt.Println("gender=", *cliGender)
+    fmt.Println("flagname=", cliFlag)
+}
+```
+
+**无任何输入参数调用：**
+
+```shell
+$ ./main        
+args=[], num=0
+name= nick
+age= 28
+gender= male
+flagname= 1234
+```
+
+**传递参数调用：**
+
+```shell
+$ ./main -name=zhangsan -age=18 -gender=人妖  
+args=[], num=0
+name= zhangsan
+age= 18
+gender= 人妖
+flagname= 1234
+```
+
+**传递错误的参数：**
+
+```shell
+$ ./main -hobby=study             # 没有hobby参数            
+flag provided but not defined: -hobby
+Usage of ./main:
+  -age int
+        Input Your Age (default 28)
+  -flagname int
+        Just for demo (default 1234)
+  -gender string
+        Input Your Gender (default "male")
+  -name string
+        Input Your Name (default "nick")
+```
+
+**传递多余的参数调用：**
+
+```shell
+$ ./main -name=李四 a bc
+args=[a bc], num=2 # 这是多余的参数，多余参数不能是 -xxx 或者 --xxx的形式
+arg[0]=a
+arg[1]=bc
+name= 李四
+age= 28
+gender= male
+flagname= 1234
+```
+
+#### 查看帮助命令
+
+`flag`会自动为程序生成帮助命令：
+
+```shell
+$ ./main --help       # 或者使用 -h
+Usage of ./main:
+  -age int
+        Input Your Age (default 28)
+  -flagname int
+        Just for demo (default 1234)
+  -gender string
+        Input Your Gender (default "male")
+  -name string
+        Input Your Name (default "nick")
+```
+
+#### 命令行传参形式
+
+- 单个bool标志：`main -b=true`，可以省略为`main -b`
+- 一下四种传参形式是相同的：
+  - `main --name=zhangsa`
+  - `main --name zhangsan`
+  - `main -name=zhangsan`
+  - `main -name zhangsan`
+- 约定俗称将单个`-`表示命令参数的缩写，两个`-`，也就是`--`表示命令参数全写
+
+#### 非标志参数
+
+也就是不带`-`的参数：
+
+```go
+flag.Args()
+```
+
+#### 命令缩写实现
+
+通过提供2个标志处理程序实现：
+
+```go
+var gopherType string
+ 
+func init() {
+    const (
+        defaultGopher = "pocket"
+        usage         = "the variety of gopher"
+    )
+    flag.StringVar(&gopherType, "gopher_type", defaultGopher, usage)
+    flag.StringVar(&gopherType, "g", defaultGopher, usage+" (shorthand)")
+}
+```
+
+#### 强制参数
+
+也就是必需参数，通过判断值是否为零值确认：
+
+```go
+// [...]
+flag.Parse()
+ 
+if *count == "" {
+    flag.PrintDefaults()
+    os.Exit(1) // 以代码1退出
+}
+```
+
+
+
+## 测试
 
 Go自带一个轻量级的测试框架`testing`，以及`go test`命令，用于实现**单元测试**和**性能测试**。`testing`与其他语言的测试框架类似，可以针对响应函数编写测试用例，也可以基于框架写相应的压力测试用例。可以从如下几个方面保证代码质量：
 
@@ -2199,7 +2390,9 @@ Go自带一个轻量级的测试框架`testing`，以及`go test`命令，用于
 2. 确保写出的代码性能，`testing`会展示每个测试用例执行的时间
 3. 及时发现程序设计的逻辑错误，让问题尽早暴露
 
-### 使用`testing`测试代码
+### 使用`testing`测试
+
+#### 使用案例
 
 目标测试包结构，该包主要提供加减乘除四个方法：
 
@@ -2314,7 +2507,7 @@ FAIL    cal     0.353s
 
 ```
 
-### 只打印测试失败结果
+#### 只打印测试失败结果
 
 去除`-v`参数即可，如下测试就没有打印任何成功的测试用例：
 
@@ -2343,7 +2536,7 @@ exit status 2
 FAIL    cal     0.726s
 ```
 
-### 针对某个测试文件测试
+#### 针对某个测试文件测试
 
 注意，一定要带上被测试的原文件：
 
@@ -2352,7 +2545,7 @@ $ go test sub_test.go  cal.go
 ok      command-line-arguments  0.421s
 ```
 
-### 针对某个测试函数测试
+#### 针对某个测试函数测试
 
 仅测试`TestSub`单元测试函数：
 
@@ -2364,7 +2557,7 @@ PASS
 ok      cal     0.235s
 ```
 
-### 使用注意事项
+#### 使用注意事项
 
 1. 测试文件必须以`_test.go`结尾，前缀则不要求与源码文件相同
 2. 测试函数必须以`Test`开头，后缀通常是被测函数的名称（不是必需的），并且首字母必须大写，否则不会识别。比如`TestDivision`，`TestDivisionByZero`
@@ -2373,7 +2566,7 @@ ok      cal     0.235s
 5. 如果出现错误，也就是不符合期望值，可以调用`t.Error()`,`t.Fatalf()`等方法标记当前测试失败
 6. 如果测试过程中发生异常，测试用例失败
 
-### `testing`的原理
+#### `testing`的原理
 
 1. `go test`工具将测试文件`cal_test.go`引入到自己的`main`中
 2. 在`main`中调用所有的测试用例
@@ -2387,7 +2580,11 @@ func main() {
 }
 ```
 
+## 编码和数据格式
 
+### 使用`encoding/json`操作json
+
+### 使用`encoding/xml`操作xml
 
 ## 并发编程
 
@@ -2698,12 +2895,6 @@ func main() {
 
 
 ## 标准库
-
-### encoding/json json处理
-
-###  http
-
-
 
 ## module
 
