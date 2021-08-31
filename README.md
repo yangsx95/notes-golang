@@ -2191,6 +2191,391 @@ type MyInterface interface {
 
 ## 错误处理
 
+## 单元测试
+
+Go自带一个轻量级的测试框架`testing`，以及`go test`命令，用于实现**单元测试**和**性能测试**。`testing`与其他语言的测试框架类似，可以针对响应函数编写测试用例，也可以基于框架写相应的压力测试用例。可以从如下几个方面保证代码质量：
+
+1. 确保每个函数是可运行的，并且运行结果是正确的
+2. 确保写出的代码性能，`testing`会展示每个测试用例执行的时间
+3. 及时发现程序设计的逻辑错误，让问题尽早暴露
+
+### 使用`testing`测试代码
+
+目标测试包结构，该包主要提供加减乘除四个方法：
+
+```
+cal
+├── cal.go
+├── cal_test.go
+└── sub_test.go
+```
+
+`cal.go`：
+
+```go
+package cal
+
+func Plus(a, b int) int {
+	return a + b
+}
+
+func Sub(a, b int) int {
+	return a - b
+}
+
+func Multi(a, b int) int {
+	return a * b
+}
+
+func Division(a, b int) int  {
+	return a / b
+}
+```
+
+`cal_test.go（`针对加乘除三个函数测试）： 
+
+```go
+package cal
+
+import (
+	"testing"
+)
+
+func TestPlus(t *testing.T) {
+	res := Plus(1, 2)
+	e := 3 // 期望值
+
+	if res != 3 { // 失败
+		t.Fatalf("执行失败：期望值 %v， 目标值 %v ", e, res) // 发生致命错误，并格式化错误信息
+	}
+	t.Logf("执行成功：期望值 %v， 目标值 %v", e, res) // 打印日志
+}
+
+func TestDivision(t *testing.T) {
+	res := Division(1, 2)
+	t.Logf("执行成功：目标值 %v", res)
+}
+
+// 测试除零的情况
+func TestDivisionByZero(t *testing.T) {
+	res := Division(1, 0)
+	t.Logf("执行成功：目标值 %v", res) // 打印日志
+}
+
+```
+
+`sub_test.go`（针对减法函数测试）：
+
+```go
+package cal
+
+import "testing"
+
+func TestSub(t *testing.T) {
+	res := Sub(1, 2)
+	if res != -1 {
+		t.Fatalf("执行失败：期望值 %v， 目标值 %v ", -1, res) // 失败并打印信息
+	}
+}
+```
+
+**执行命令`go test -v`可以测试当前所在文件夹的包中的所有测试用例：**
+
+```shell
+$ go test -v 
+=== RUN   TestPlus  # Plus方法通过
+    cal_test.go:14: 执行成功：期望值 3， 目标值 3
+--- PASS: TestPlus (0.00s)
+=== RUN   TestDivision # Division方法通过
+    cal_test.go:19: 执行成功：目标值 0 
+--- PASS: TestDivision (0.00s) # 这是运行时间
+=== RUN   TestDivisionByZero # Division除0不通过
+--- FAIL: TestDivisionByZero (0.00s)
+panic: runtime error: integer divide by zero [recovered]
+        panic: runtime error: integer divide by zero
+
+goroutine 8 [running]:
+testing.tRunner.func1.2(0x11217e0, 0x1215b40)
+        /usr/local/go/src/testing/testing.go:1143 +0x332
+testing.tRunner.func1(0xc000001800)
+        /usr/local/go/src/testing/testing.go:1146 +0x4b6
+panic(0x11217e0, 0x1215b40)
+        /usr/local/go/src/runtime/panic.go:965 +0x1b9
+cal.Division(...)
+        /Users/yangsx/GoLandProjects/notes-golang/src/cal/cal.go:16
+cal.TestDivisionByZero(0xc000001800)
+        /Users/yangsx/GoLandProjects/notes-golang/src/cal/cal_test.go:23 +0x12
+testing.tRunner(0xc000001800, 0x114d280)
+        /usr/local/go/src/testing/testing.go:1193 +0xef
+created by testing.(*T).Run
+        /usr/local/go/src/testing/testing.go:1238 +0x2b3
+exit status 2
+FAIL    cal     0.353s
+
+```
+
+### 只打印测试失败结果
+
+去除`-v`参数即可，如下测试就没有打印任何成功的测试用例：
+
+```shell
+$ go test    
+--- FAIL: TestDivisionByZero (0.00s)
+panic: runtime error: integer divide by zero [recovered]
+        panic: runtime error: integer divide by zero
+
+goroutine 18 [running]:
+testing.tRunner.func1.2(0x11217e0, 0x1215b40)
+        /usr/local/go/src/testing/testing.go:1143 +0x332
+testing.tRunner.func1(0xc000082600)
+        /usr/local/go/src/testing/testing.go:1146 +0x4b6
+panic(0x11217e0, 0x1215b40)
+        /usr/local/go/src/runtime/panic.go:965 +0x1b9
+cal.Division(...)
+        /Users/yangsx/GoLandProjects/notes-golang/src/cal/cal.go:16
+cal.TestDivisionByZero(0xc000082600)
+        /Users/yangsx/GoLandProjects/notes-golang/src/cal/cal_test.go:23 +0x12
+testing.tRunner(0xc000082600, 0x114d280)
+        /usr/local/go/src/testing/testing.go:1193 +0xef
+created by testing.(*T).Run
+        /usr/local/go/src/testing/testing.go:1238 +0x2b3
+exit status 2
+FAIL    cal     0.726s
+```
+
+### 针对某个测试文件测试
+
+注意，一定要带上被测试的原文件：
+
+```shell
+$ go test sub_test.go  cal.go 
+ok      command-line-arguments  0.421s
+```
+
+### 针对某个测试函数测试
+
+仅测试`TestSub`单元测试函数：
+
+```shell
+$ go test -v -test.run TestSub
+=== RUN   TestSub
+--- PASS: TestSub (0.00s)
+PASS
+ok      cal     0.235s
+```
+
+### 使用注意事项
+
+1. 测试文件必须以`_test.go`结尾，前缀则不要求与源码文件相同
+2. 测试函数必须以`Test`开头，后缀通常是被测函数的名称（不是必需的），并且首字母必须大写，否则不会识别。比如`TestDivision`，`TestDivisionByZero`
+3. 测试函数的参数必须为`t testing.T`
+4. 测试函数体中需要打印日志的情况可以使用`t.Logf`方法打印
+5. 如果出现错误，也就是不符合期望值，可以调用`t.Error()`,`t.Fatalf()`等方法标记当前测试失败
+6. 如果测试过程中发生异常，测试用例失败
+
+### `testing`的原理
+
+1. `go test`工具将测试文件`cal_test.go`引入到自己的`main`中
+2. 在`main`中调用所有的测试用例
+
+类似如下伪代码：
+
+```
+func main() {
+	TestXXX()
+	...
+}
+```
+
+
+
+## 并发编程
+
+### goroutine
+
+#### 启动单个goroutine
+
+```go
+package main
+
+import "fmt"
+
+func hello() {
+  fmt.Println("Hello Gorotine")
+}
+
+func main() {
+  go hello() // 启动一个goroutine，并发调用函数hello
+  fmt.Println("main done!")
+  time.Sleep(time.Second) // 防止hello协程还未执行，主线程就退出了
+}
+```
+
+运行结果：
+
+```
+main done!
+Hello Gorotine
+```
+
+#### sync.WaitGroup
+
+`sync.WaitGroup`类似Java中的`CountDownLaunch`，当`sync.WaitGroup`中的值为0时，阻塞将会被放开，用于保证一个或者多个`goroutine`完成运行：
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+var wg sync.WaitGroup
+
+func hello(i int) {
+	defer wg.Done() // goroutine结束就登记-1
+	fmt.Println("Hello ", i)
+}
+
+func main() {
+	for i := 0; i < 100; i++ {
+		wg.Add(1) // 启动一个goroutine就登记+1
+		go hello(i)
+	}
+	fmt.Println("main done!")
+	wg.Wait() // 等待所有goroutine结束登记
+}
+
+```
+
+### channel
+
+虽然`goroutine`可以通过共享内存的方式来相互通讯进行数据共享，但是这种方式往往会造成资源竞争，从而发生并发安全问题。如果通过锁机制解决资源竞争问题，势必会导致性能下降。
+
+Go语言的[并发模型](https://zhuanlan.zhihu.com/p/137339439)是 [CSP（Communicating Sequential Processes）](https://zh.wikipedia.org/wiki/%E4%BA%A4%E8%AB%87%E5%BE%AA%E5%BA%8F%E7%A8%8B%E5%BC%8F)，提倡**通过通信共享内存**而不是**通过共享内存而实现通信**。如果说`goroutine`是Go程序并发的执行体，`channel`就是它们之间的连接。`channel`是可以让一个`goroutine`发送特定值到另一个`goroutine`的通信机制。
+
+Go 语言中的通道（channel）是一种特殊的**类型**。通道像一个传送带或者队列，总是遵循**先入先出（First In First Out）**的规则，保证收发数据的顺序。每一个通道都是一个具体类型的导管，也就是声明channel的时候需要为其指定元素类型。
+
+#### 无缓冲channel（同步通道）
+
+**无缓冲channel通讯示例（正常情况）：**
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+  var ch chan int
+	fmt.Println(ch) // <nil> channel 是引用类型
+  
+	// 创建的chan类型变量必须通过make函数初始化之后才可以使用
+	ch = make(chan int) // 创建一个无缓冲通道
+  
+	go recv(ch)             // 启动一个goroutine用于接收main从通道ch发送的值
+	// 向通道发送值
+	ch <- 10 // 此处将会阻塞，等待recv消费完消息后才会继续执行
+	fmt.Println("main:发送数字10成功")
+}
+
+func recv(ci chan int) {
+	time.Sleep(5 * time.Second)
+	// 消费通道消息
+	i := <-ci
+	fmt.Println("recv:消费了通道内的值 ", i)
+}
+```
+
+返回结果：
+
+```
+<nil> 
+# ... 这里会等待五秒钟
+recv:消费了通道内的值  10
+main:发送数字10成功
+```
+
+
+
+**有发送，但是无接收：**
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	// 创建的chan类型变量必须通过make函数初始化之后才可以使用
+	var ch chan int = make(chan int) // 创建一个无缓冲通道
+
+	// 向通道发送值
+	ch <- 10 // 无缓冲通道需要有接收方才能发送信息，否则将会一直阻塞在此处
+  // 因为没有任何接收方，main会一直阻塞在此处，所以代码发生了死锁
+	// 故此处代码运行时将会抛出异常 fatal error: all goroutines are asleep - deadlock!
+
+}
+```
+
+**有接收，但是没有发送：**
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+var wg sync.WaitGroup
+
+func main() {
+	var ch = make(chan int) // 创建一个无缓冲通道
+	wg.Add(1)
+	go recv(ch)
+	wg.Wait()
+}
+
+func recv(ch chan int) {
+	i := <-ch // fatal error: all goroutines are asleep - deadlock!
+	// 消费方也会从通道中取信息，如果信息不存在，会一直阻塞等待，故也会引发死锁错误
+	fmt.Println("recv:消费了通道内的值 ", i)
+	wg.Done()
+}
+```
+
+>  **无缓冲通道总结：**
+>
+> 1. 发送方发送数据到通道，发送方将会开始阻塞，等待者消费者取出，当消费取出数据时，才会继续执行。如果没有消费者，或者消费者没有消费数据，将会一直阻塞，造成程序死锁报错
+> 2. 接收方从通道接收数据，接收方将会开始阻塞，等待发送者发送，直到接收方接收到数据时，才会继续执行。如果没有发送者或者发送者没有像通道发送数据，将会一直阻塞，造成程序死锁报错
+
+#### 有缓冲channel
+
+有时候发送方发送数据不想等待接收方接收数据后才执行，这时以采用有缓冲通道，有缓冲通道的定义与无缓冲的区别在于只需要在`make`函数初始化`channel`时，使用第二个参数指定缓冲队列的长度即可，代码如下：
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+  // 创建一个容量为1的有缓冲区通道, 只要通道缓冲区容量大于0，就是有缓冲通道
+	ch := make(chan int, 1)
+	ch <- 10 // 通道不会阻塞，因为防止在了通道缓冲区
+	fmt.Println("发送成功")
+	ch <- 20 // 通道已经满了，当前协程将会阻塞，所以报出运行时异常 fatal error: all goroutines are asleep - deadlock!
+}
+```
+
+**使用`for range`循环发送/接收多条消息：**
+
+```go
+```
+
+
+
 
 
 ## 系统函数
