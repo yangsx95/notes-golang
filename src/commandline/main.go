@@ -1,35 +1,45 @@
 package main
 
-import "flag"
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+)
 
-// 定义命令行参数对应的变量，这三个变量都是指针类型
-var cliName = flag.String("name", "nick", "Input Your Name")
-var cliAge = flag.Int("age", 28, "Input Your Age")
-var cliGender = flag.String("gender", "male", "Input Your Gender")
-
-// 定义一个值类型的命令行参数变量，在 Init() 函数中对其初始化
-// 因此，命令行参数对应变量的定义和初始化是可以分开的
-var cliFlag int
-func init() {
-	flag.IntVar(&cliFlag, "flagname", 1234, "Just for demo")
-}
-
-func main() {
-	// 把用户传递的命令行参数解析为对应变量的值
-	flag.Parse()
-
-	// flag.Args() 函数返回没有被解析的命令行参数
-	// func NArg() 函数返回没有被解析的命令行参数的个数
-	fmt.Printf("args=%s, num=%d\n", flag.Args(), flag.NArg())
-	for i := 0; i != flag.NArg(); i++ {
-		fmt.Printf("arg[%d]=%s\n", i, flag.Arg(i))
+func main() { //读写方式打开文件
+	file, err := os.OpenFile("/etc/network/interfaces", os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Println("open file filed.", err)
+		return
+	} //defer关闭文件
+	defer file.Close() //获取文件大小
+	stat, err := file.Stat()
+	if err != nil {
+		panic(err)
 	}
-
-	// 输出命令行参数
-	fmt.Println("name=", *cliName)
-	fmt.Println("age=", *cliAge)
-	fmt.Println("gender=", *cliGender)
-	fmt.Println("flagname=", cliFlag)
+	var size = stat.Size()
+	fmt.Println("file size:", size) //读取文件内容到io中
+	reader := bufio.NewReader(file)
+	pos := int64(0)
+	ip := "40.40.40.220"
+	gateway := "40.40.40.1"
+	netmask := "255.255.255.0"
+	for { //读取每一行内容
+		line, err := reader.ReadString('\n')
+		if err != nil { //读到末尾 if err == io.EOF { fmt.Println("File read ok!") break } else { fmt.Println("Read file error!", err) return }
+		}
+		fmt.Println(line) //根据关键词覆盖当前行
+		if strings.Contains(line, "address") {
+			bytes := []byte("address " + ip + "\n")
+			file.WriteAt(bytes, pos)
+		} else if strings.Contains(line, "gateway") {
+			bytes := []byte("gateway " + gateway + "\n")
+			file.WriteAt(bytes, pos)
+		} else if strings.Contains(line, "netmask") {
+			bytes := []byte("netmask " + netmask + "\n")
+			file.WriteAt(bytes, pos)
+		} //每一行读取完后记录位置
+		pos += int64(len(line))
+	}
 }
-

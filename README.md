@@ -2191,6 +2191,121 @@ type MyInterface interface {
 
 ## 错误处理
 
+go语言没有异常，为了代码的优雅，也没有传统的`try catch finally`语法
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	div(1, 0)
+	fmt.Println("--- main执行完毕 ---")
+}
+
+func div(a, b int) int {
+	return a / b
+}
+```
+
+执行结果：
+
+```
+panic: runtime error: integer divide by zero   # 发生了一个panic（致命错误），会引发程序停止
+
+goroutine 1 [running]: # 打印堆栈信息
+main.div(...) 
+        /Users/yangsx/Project/notes-golang/go语言圣经/练习答案/5. 函数/5.10 Recover捕获异常/练习 5.19/main.go:11
+main.main()
+        /Users/yangsx/Project/notes-golang/go语言圣经/练习答案/5. 函数/5.10 Recover捕获异常/练习 5.19/main.go:6 +0x12
+```
+
+为了程序正常运行，我们需要对错误进行处理。
+
+### defer、panic、recover
+
+- `panic`抛出错误
+- `recover`在`defer`中捕获错误
+
+### defer + recover 在方法内抓取错误
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	div(1, 0)
+	fmt.Println("--- main执行完毕 ---")
+}
+
+func div(a, b int) int {
+	// 使用defer + recover 处理错误
+	defer func() {
+		// 如果该方法返回异常，则一定会走defer语句块，也就是这个闭包，可以在这个闭包中使用recover内置函数获取发生的异常对象
+		if err := recover(); err != nil {
+			fmt.Println("出现错误：", err)
+			// 发送错误邮件....
+		}
+	}()
+	return a / b
+}
+```
+
+### panic抛出自定义错误
+
+```go
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+func main() {
+	div(1, 0)
+	fmt.Println("--- main执行完毕 ---")
+}
+
+func div(a, b int) int {
+	if b == 0 {
+	 	panic(errors.New("除数不能为0"))
+	}
+	return a / b
+}
+```
+
+### 返回错误并交给调用方处理
+
+代码预警，判断参数是否复合标准，否则创建一个自定error并返回
+
+```go
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+func main() {
+	i, err := div(1, 0)
+	if err != nil {
+		fmt.Println("执行出现错误，程序退出：", err)
+		return
+	}
+	fmt.Println("执行结果：", i)
+}
+
+func div(a, b int) (int, error) {
+	if b == 0 {
+		return 0, errors.New("除数不能是0")
+	}
+	return a / b, nil
+}
+```
+
+
+
 ## 命令行编程
 
 ### `os.Args`获取命令行参数
@@ -2377,6 +2492,253 @@ flag.Parse()
 if *count == "" {
     flag.PrintDefaults()
     os.Exit(1) // 以代码1退出
+}
+```
+
+## 文件操作
+
+`os` 包提供了平台无关的操作系统功能接口。尽管错误处理是 go 风格的，但设计是 Unix 风格的；所以，失败的调用会返回 `error` 而非错误码。通常 `error` 里会包含更多信息。例如，如果使用一个文件名的调用（如 Open、Stat）失败了，打印错误时会包含该文件名，错误类型将为 `*PathError`，其内部可以解包获得更多信息。
+
+os 包规定为所有操作系统实现的接口都是一致的。有一些某个系统特定的功能，需要使用 `syscall` 获取。实际上，`os` 依赖于 `syscall`。在实际编程中，我们应该总是优先使用 `os` 中提供的功能，而不是 `syscall`。
+
+
+
+### 带缓冲读取
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+)
+
+func main() {
+	file, err := os.Open("/Users/yangsx/Desktop/helloworld.txt") // 返回一个文件对象/文件指针/文件句柄
+	defer file.Close() // 关闭File句柄
+
+	if err != nil {
+		fmt.Println("open file err: ", err)
+	}
+
+	// 创建一个*Reader，默认带大小4096字节的缓冲区
+	reader := bufio.NewReader(file)
+	// 循环读取文件内容
+	for {
+		str, err := reader.ReadString('\n') // 读取到换行符就结束
+		if err == io.EOF { // 如果读取到文件末尾
+			break
+		}
+		// 输出该行
+		fmt.Print(str) // 会把换行符打印
+	}
+	fmt.Println("----文件读取结束----")
+}
+```
+
+### 一次全文读取
+
+> 1.16后，`ioutil`实际上调用`os.ReadFile()`函数，推荐直接使用`os.ReadFile()`函数
+
+```go
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+)
+
+func main() {
+	// 返回字节数组
+	bs, err := ioutil.ReadFile("/Users/yangsx/Desktop/helloworld.txt")
+	if err != nil {
+		fmt.Println("读取文件失败：", err)
+	}
+	fmt.Printf("%s", bs)
+}
+```
+
+### 打开文件的方式
+
+使用`func OpenFile(name string, flag int, perm FileMode) (file *File, err error)`函数打开文件并指定打开模式：
+
+```go
+// flag，打开方式，多个可以组合使用  os.O_RDWR | os.APPEND
+const (
+    O_RDONLY int = syscall.O_RDONLY // 只读模式打开文件
+    O_WRONLY int = syscall.O_WRONLY // 只写模式打开文件
+    O_RDWR   int = syscall.O_RDWR   // 读写模式打开文件
+    O_APPEND int = syscall.O_APPEND // 写操作时将数据附加到文件尾部
+    O_CREATE int = syscall.O_CREAT  // 如果不存在将创建一个新文件
+    O_EXCL   int = syscall.O_EXCL   // 和O_CREATE配合使用，文件必须不存在
+    O_SYNC   int = syscall.O_SYNC   // 打开文件用于同步I/O
+    O_TRUNC  int = syscall.O_TRUNC  // 如果可能，打开时清空文件
+)
+
+// 文件权限
+const (
+    // 单字符是被String方法用于格式化的属性缩写。
+    ModeDir        FileMode = 1 << (32 - 1 - iota) // d: 目录
+    ModeAppend                                     // a: 只能写入，且只能写入到末尾
+    ModeExclusive                                  // l: 用于执行
+    ModeTemporary                                  // T: 临时文件（非备份文件）
+    ModeSymlink                                    // L: 符号链接（不是快捷方式文件）
+    ModeDevice                                     // D: 设备
+    ModeNamedPipe                                  // p: 命名管道（FIFO）
+    ModeSocket                                     // S: Unix域socket
+    ModeSetuid                                     // u: 表示文件具有其创建者用户id权限
+    ModeSetgid                                     // g: 表示文件具有其创建者组id的权限
+    ModeCharDevice                                 // c: 字符设备，需已设置ModeDevice
+    ModeSticky                                     // t: 只有root/创建者能删除/移动文件
+    // 覆盖所有类型位（用于通过&获取类型位），对普通文件，所有这些位都不应被设置
+    ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice
+    ModePerm FileMode = 0777 // 覆盖所有Unix权限位（用于通过&获取类型位）
+)
+```
+
+### 一次性写入
+
+> 实际调用`os.WriteFile()`函数
+
+```go
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+)
+
+func main() {
+	str := "hello"
+	// 覆盖写入一次性写入字符串
+	err := ioutil.WriteFile("/Users/yangsx/Desktop/helloworld.txt", []byte(str), 0666)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println("写入成功")
+}
+```
+
+### 带缓冲追加写入
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+)
+
+func main() {
+	file, err := os.OpenFile("/Users/yangsx/Desktop/helloworld.txt", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	defer file.Close()
+	if err != nil {
+		fmt.Println("打开文件出错：", err)
+	}
+	// 写入数据
+	str := "你好，世界\n"
+	// 使用带缓存的 *Writer
+	writer := bufio.NewWriter(file)
+	for i := 0; i < 5; i++ {
+		writer.WriteString(str)
+	}
+	// 因为writer是带缓存的，需要使用flush函数真正写入到磁盘中
+	writer.Flush()
+
+	fmt.Println("写入数据成功")
+}
+```
+
+### 覆盖写入
+
+使用选项， `os.O_TRUNC` 清空文件
+
+### 判断文件状态
+
+**判断文件/文件夹是否存在：**
+
+```go
+// Stat函数就像linux下的stat命令，该函数会返回一个FileInfo struct
+func PathExist(path string) (bool, error){
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil // 没有错误，说明文件/文件夹一定存在
+	}
+	if os.IsNotExist(err) { // 如果错误信息是文件不存在，则说明文件/文件夹一定不存在
+		return false, nil
+	}
+	return false, err
+}
+```
+
+**获取文件状态：**
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+)
+
+func main() {
+	fi, err := os.Stat("/Users/yangsx/Desktop/helloworld.txt")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Printf(`文件名称为：%s, 
+文件大小为： %d,
+是否是文件夹： %t,
+文件的Mode： %d
+`, fi.Name(), fi.Size(), fi.IsDir(), fi.Mode())
+}
+```
+
+### 文件拷贝
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+)
+
+func main() {
+	src := "/Users/yangsx/Desktop/helloworld.txt"
+	dst := "/Users/yangsx/Desktop/h.txt"
+
+	srcF, err := os.OpenFile(src, os.O_RDONLY, 0666)
+	defer srcF.Close()
+	if err != nil {
+		fmt.Println("打开src失败： ", err)
+		return
+	}
+	dstF, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	defer dstF.Close()
+	if err != nil {
+		fmt.Println("打开dst失败： ", err)
+		return
+	}
+
+	// 构建reader 和 writter
+	reader := bufio.NewReader(srcF)
+	writer := bufio.NewWriter(dstF)
+
+	// 调用拷贝方法
+	wi, err := io.Copy(writer, reader)
+	if err != nil {
+		fmt.Println("拷贝失败 ", err)
+		return
+	}
+	fmt.Println("拷贝成功，字节数：", wi)
 }
 ```
 
@@ -2715,6 +3077,82 @@ func main() {
 
 参考：[json的日期格式化解决方案](#日期格式化解决方案)
 
+### 使用`magiconair`操作properties
+
+- 仓库地址：[magiconair/properties: Java properties scanner for Go (github.com)](https://github.com/magiconair/properties)
+- okg.go.dev： [properties package - github.com/magiconair/properties - pkg.go.dev](https://pkg.go.dev/github.com/magiconair/properties)
+
+#### 读取properties文件
+
+```go
+package main
+
+import (
+	"flag"
+	"fmt"
+	"github.com/magiconair/properties"
+	"log"
+	"os"
+	"time"
+)
+
+func main() {
+	// 读取一个properties文件
+	p := properties.MustLoadFile("${HOME}/config.properties", properties.UTF8)
+
+	// 或者多去多个properties文件
+	p = properties.MustLoadFiles([]string{
+		"${HOME}/config.properties",
+		"${HOME}/config-${USER}.properties",
+	}, properties.UTF8, true)
+
+	// 或者读取一个map
+	p = properties.LoadMap(map[string]string{"key": "value", "abc": "def"})
+
+	// 或者读取properties字符串
+	p = properties.MustLoadString("key=value\nabc=def")
+
+	// 或者从url中读取
+	p = properties.MustLoadURL("http://host/path")
+
+	// 或者读取多个url
+	p = properties.MustLoadURLs([]string{
+		"http://host/config",
+		"http://host/config-${USER}",
+	}, true)
+
+	// 或者通过flag读取控制台
+	p.MustFlag(flag.CommandLine)
+
+	// 使用getter根据key获取对应的value，并且可以设置默认值
+	host := p.MustGetString("host")
+	port := p.GetInt("port", 8080)
+	fmt.Println(host, port)
+
+	// 通过Decode解析为struct结构体
+	type Config struct {
+		Host    string        `properties:"host"`              // 对应properties配置文件key为hsot
+		Port    int           `properties:"port,default=9000"` // 可以设置默认值
+		Accept  []string      `properties:"accept,default=image/png;image;gif"`
+		Timeout time.Duration `properties:"timeout,default=5s"`
+	}
+	var cfg Config
+	if err := p.Decode(&cfg); err != nil {
+		log.Fatal(err)
+	}
+
+	// 将properties写入到指定的writer中，通常是文件
+	// 第一个参数为文件路径，第二个参数为只写模式打开，第三个参数为权限为拥有该文件创建用户的权限
+	write, err := os.OpenFile("${HOME}/config.properties", os.O_WRONLY, os.ModeSetuid)
+	if err != nil {}
+
+	p.Write(write, properties.UTF8)
+}
+
+```
+
+#### 修改并写入properties
+
 
 
 ## 并发编程
@@ -2783,6 +3221,14 @@ func main() {
 Go语言的[并发模型](https://zhuanlan.zhihu.com/p/137339439)是 [CSP（Communicating Sequential Processes）](https://zh.wikipedia.org/wiki/%E4%BA%A4%E8%AB%87%E5%BE%AA%E5%BA%8F%E7%A8%8B%E5%BC%8F)，提倡**通过通信共享内存**而不是**通过共享内存而实现通信**。如果说`goroutine`是Go程序并发的执行体，`channel`就是它们之间的连接。`channel`是可以让一个`goroutine`发送特定值到另一个`goroutine`的通信机制。
 
 Go 语言中的通道（channel）是一种特殊的**类型**。通道像一个传送带或者队列，总是遵循**先入先出（First In First Out）**的规则，保证收发数据的顺序。每一个通道都是一个具体类型的导管，也就是声明channel的时候需要为其指定元素类型。
+
+**注意事项：**
+
+1. 一个先进先出的队列
+2. 管道是数据安全的，不需要加锁
+3. 管道是有类型的，一个`string`类型的channel只能存放`string`
+4. `chan`是引用类型，`chan`必须初始化`make`之后才能使用
+5. 在没有使用协程的情况下，如果取/读完了再去取/读就会报`dead lock`错误
 
 #### 无缓冲channel（同步通道）
 
@@ -2897,12 +3343,255 @@ func main() {
 }
 ```
 
-**使用`for range`循环发送/接收多条消息：**
+#### 关闭channel
+
+使用内置函数`close()`可以关闭`channel`，被关闭后，程序不能向`channel`继续写入数据了，但是可以继续从中读取数据。
 
 ```go
+package main
+
+import "fmt"
+
+func main() {
+	ic := make(chan int, 3)
+	ic <- 100
+	ic <- 200
+	close(ic) // 关闭管道
+	// 再次写入就会报错
+	// ic <- 300 // panic: send on closed channel
+	// 但是可以继续读取
+	n := <-ic
+  fmt.Println(n)
+}
+```
+
+> 注意，当从一个被关闭的通道中拿取数据时，如果通道中没有数据，该操作将不会再阻塞，而是返回一个false的状态位：`n, ok := <- ic`，ok == false
+
+#### 遍历channel
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	ic := make(chan int, 3)
+	ic <- 100
+	ic <- 200
+	ic <- 300 // panic: send on closed channel
+
+	// 如果放入之后，没有关闭，在循环取出时，取出到最后一条，将会发生死锁错误
+	close(ic)
+
+	for i := range ic {
+		fmt.Printf("i=%v\n", i) // 假设没有关闭，将会报错 error: all goroutines are asleep - deadlock!
+	}
+}
+```
+
+**上面的代码等同于如下循环：**
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	ic := make(chan int, 3)
+	ic <- 100
+	ic <- 200
+	ic <- 300 // panic: send on closed channel
+
+	// 如果放入之后，没有关闭，在循环取出时，取出到最后一条，将会发生死锁错误
+	close(ic)
+
+	for {
+		i, ok := <-ic
+		if !ok {
+			break
+		}
+		fmt.Printf("i=%v\n", i) // 假设没有关闭，将会报错 error: all goroutines are asleep - deadlock!
+	}
+}
+```
+
+#### 只写只读管道
+
+```go
+package main
+
+func main() {
+	// 默认情况下，管道是双向的，也就是可读可写
+	var chan1 chan int
+
+	// 也可以在声明管道时，将管道设置为只读或者只写
+
+	// 只写管道
+	var chan2 chan <- int
+	chan2 = make(chan int, 3)
+
+	chan2 <- 20
+	num := <- chan2 // Invalid operation: <- chan2 (receive from the send-only type chan<- int)
+
+	// 只读管道
+	var chan3 <- chan int
+	chan3 = make(chan int, 3)
+	chan3 <- 30 // Invalid operation: chan3 <- 30 (send to the receive-only type <-chan int)
+}
+```
+
+**使用场景：**可以限制某个协程只读、只写管道，如下：
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+var wg sync.WaitGroup
+
+func main() {
+	c := make(chan int, 3)
+	wg.Add(2)
+	go send(c)
+	go recv(c)
+	wg.Wait()
+}
+
+// 发送方只写
+func send(c chan <- int) {
+	for i := 0; i < 10; i++ {
+		c <- i
+	}
+	close(c)
+	wg.Done()
+}
+
+// 接收方只读
+func recv(c <-chan int) {
+	for i := range c {
+		fmt.Println(i)
+	}
+	wg.Done()
+}
+```
+
+### 协程内的错误处理
+
+如果启动了一个协程，但是该协程出现了`panic`，如果没有捕获这个`panic`，就会造成整个程序的崩溃。这时可以在协程函数中使用recover捕获panic处理，防止影响其他协程以及主协程。
+
+### select关键字
+
+#### 解决管道阻塞
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	intChan := make(chan int, 5)
+	strChan := make(chan string, 5)
+
+	for i := 0; i < 5; i++ {
+		intChan <- i
+		strChan <- fmt.Sprintf("hello%d", i)
+	}
+
+	// 不关闭chan
+over:
+	for true { // 循环使用select读取管道，且按顺序读，如果第一个case没有读取到，则从下一个case管道读取
+		select {
+		case v := <-intChan:
+			fmt.Println("从intChan读取数据", v)
+		case v := <-strChan:
+			fmt.Println("从strChan读取数据", v)
+		default:
+			fmt.Println("都读取完了，退出for")
+			break over
+		}
+	}
+
+}
 ```
 
 
+
+### 练习
+
+#### 练习1
+
+启动一个协程，将 `1 - 2000` 的数字放入到`channel`中，然后再启动8个协程，从`channel`中取出数字，假设取出的数字是`n`，并计算`1+2+3+...+n-1+n`的值，并将结果放置到`resChan`中
+
+> 考虑类型 `resChan chan int` 是否合适
+
+```go
+package main
+
+import "fmt"
+
+const count = 2000
+
+func main() {
+	c := make(chan int, 800)
+	resChan := make(chan int, count)
+	exitChan := make(chan bool, 8)
+
+	// 添加数字
+	go addNum(c)
+
+	// 计算数字
+	for i := 0; i < 8; i++ {
+		go calc(c, resChan, exitChan)
+	}
+
+	// 检测计算数字协程的退出状态
+	go func() {
+		for i := 0; i < 8; i++ {
+			<-exitChan
+		}
+		// 八个全部取出，说明八个协程全部执行完毕，现在可以关闭通道了
+		close(exitChan)
+		close(resChan)
+	}()
+
+	// 取出结果, 放在主协程上，放置主协程提前退出
+	for i := range resChan {
+		fmt.Printf(" %d ", i)
+	}
+}
+
+func addNum(c chan int) {
+	for i := 1; i <= count; i++ {
+		c <- i
+	}
+	close(c)
+}
+
+func calc(c chan int, resChan chan int, exitChan chan bool) {
+	for n := range c {
+		sum := 0
+		for i := 1; i <= n; i++ {
+			sum += i
+		}
+		// 计算完毕，返回结果
+		resChan <- sum
+	}
+	// 如果该协程计算完毕，则向退出通道发送一条消息
+	exitChan <- true
+}
+```
+
+
+
+#### 练习2
+
+开一个协程`writeDataToFile`，生成1000个随机数，存放到文件中。当`writeDataToFile`完成1000个数据到文件后，让`sort`协程从文件中读取1000个数字，并完成排序，最后将结果写入到另一个文件
+
+```
+```
 
 
 

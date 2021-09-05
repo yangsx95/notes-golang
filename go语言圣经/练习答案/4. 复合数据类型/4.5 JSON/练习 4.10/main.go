@@ -13,7 +13,7 @@ import (
 
 const IssuesURL = "https://api.github.com/search/issues"
 
-// go run main.go repo:golang/go is:open json decoder
+// go run sort.go repo:golang/go is:open json decoder
 func main() {
 	result, err := SearchIssues(os.Args[1:])
 	if err != nil {

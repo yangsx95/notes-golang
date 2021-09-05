@@ -1,1 +1,9 @@
-package p7_4
+package main
+
+func main() {
+
+}
+
+func NewParse(h string) {
+
+}

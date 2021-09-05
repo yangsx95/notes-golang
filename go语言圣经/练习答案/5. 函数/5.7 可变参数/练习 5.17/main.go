@@ -1,1 +1,5 @@
-package 练习_5_17
+package main
+
+func main() {
+
+}

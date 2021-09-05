@@ -1,8 +1,22 @@
-package tree
+package treesort
 
-import "gopl.io/ch7/p7.3/tree"
+import (
+	"math/rand"
+	"sort"
+	"testing"
+)
 
-func main() {
-
+func TestSort(t *testing.T) {
+	data := make([]int, 50)
+	for i := range data {
+		data[i] = rand.Int() % 50
+	}
+	Sort(data)
+	if !sort.IntsAreSorted(data) {
+		t.Errorf("not sorted: %v", data)
+	}
 }
 
+func TestTree_String(t *testing.T) {
+
+}
