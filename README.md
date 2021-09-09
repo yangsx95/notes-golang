@@ -2043,7 +2043,6 @@ fmt.Println("4")
    1. 导入包需要带上路径`import ppkg/myp`
    2. 包名称是从`$GOPATH/src/`下面进行计算的，使用`/`分割，`import ppkg/myp`的路径实际为`$GOPAT/src/ppkg/myp`
 
-   
 
 ### 导入包
 
@@ -2186,6 +2185,374 @@ type MyInterface interface {
     privateMethod()
 }
 ```
+
+## 面向对象
+
+### 封装
+
+golang中的封装，主要是通过类型、方法名称的首字母大小写为主要依据。如果首字母大写，代表将该类型、方法、函数导出，在其他包下，则可以直接使用。反之，如果首字母小写，则只能被相同包的人直接引用。下面是代码示例：
+
+```go
+// Package person
+// 包 person下，person.go
+package person
+
+import "fmt"
+
+// 小写开头，结构体person不导出
+type person struct {
+	Name string
+	age uint8
+	sal float32
+}
+
+// SetAge 大写字母，方法SetAge导出
+func (p *person) SetAge(age uint8) {
+	if age > 200 {
+		fmt.Println("年龄范围在0-200之间")
+	} else {
+		p.age = age
+	}
+}
+
+func (p *person) GetAge() uint8 {
+	return p.age
+}
+
+func (p *person) SetSal(sal float32) {
+	if sal <= 0 {
+		fmt.Println("薪水不可小于零")
+	} else {
+		p.sal = sal
+	}
+}
+
+func NewPerson(name string) *person{
+	return &person{
+		Name: name,
+	}
+}
+```
+
+```go
+// package main
+// 包main，main.go
+package main
+
+import (
+	"fmt"
+	"person"
+)
+
+func main() {
+	p := person.NewPerson("张三")
+	p.Name = "李四" // 导出字段可以直接使用
+	p.SetAge(10) // 通过导出方法操作非导出字段
+	fmt.Printf("姓名: %v 年龄： %v", p.Name, p.GetAge())
+}
+```
+
+
+
+### 继承
+
+继承可以解决代码复用的问题，当多个结构体出现相同的字段、方法，可以从这些结构体中抽象出一个新的结构体，在这个结构体中定义这些共用字段、方法。最后所有的结构体都去继承这个结构体即可。
+
+golang没有完整严格的地继承方式（耦合更低），他总是优先使用组合方式——可以通过内嵌另一个结构体的方式实现继承。当结构体内嵌了另一个结构体，则当前的结构体可以直接访问内嵌的结构体中的所有属性和方法，代码如下：
+
+```go
+// package main
+// 包main，main.go
+package main
+
+import (
+	"fmt"
+)
+
+type Animal struct {
+	Name string
+}
+
+func (a *Animal)Eat() {
+}
+
+type Dog struct {
+	Animal // Dog 继承Animal，dog拥有Animal的所有字段与方法
+	// 准确的说：Dog嵌入了一个匿名结构体Animal
+	// 如果一个struct嵌套了另一个匿名的struct，
+	// 那么这个struct可以直接访问匿名结构体中的任何字段和方法
+
+	// 这是Dog特有的属性，毛色
+	Color string
+}
+
+func (d Dog) Eat() { // 相当于重写方法Eat
+	fmt.Println("吃骨头")
+}
+
+// Look 这是Dog特有的方法
+func (d Dog) Look() {
+	fmt.Println(d.Name, "在看家")
+}
+
+func main() {
+	dog := Dog{}
+	dog.Name = "旺财" // 继承Animal 的可以直接使用
+	dog.Eat() // 调用Eat方法
+	dog.Animal.Eat() // 调用父结构体的Eat方法
+
+	// 注意，这里Eat方法在Animal与Dog中都声明了，所以默认使用子构造器的字段
+	// 如果要使用父构造器的字段，需要指定内嵌结构体名称
+}
+```
+
+**总结：**
+
+1. 结构体可以使用嵌套匿名结构体所有的字段和方法，即：首字母大写、小写的字段、方法，都可以使用
+2. 匿名结构体的字段访问可以简化：`dog.Animal.Name` 可以简化为`dog.Name` 
+3. 当结构体与匿名结构体有相同的字段或者方法时，编译器采用就近访问原则访问，如果希望访问匿名结构体的字段与方法，可以使用匿名结构体的名称区分，比如：`Eat()`在`Animal`与`Dog`中都含有此方法，默认使用`dog.Eat()`会调用`Dog`的方法（就近原则），如果想要调用匿名结构体的`Eat()`，需要使用`dog.Animal.Eat()`
+4. 结构体嵌入两个或者多个匿名结构体，如果两个匿名结构体具有相同的字段和方法（同时结构体本身没有这个字段与方法），在访问时就必须明确指定匿名结构体名字，否则编译器报错。比如，结构体`A`同时继承`B`与`C`，且`B`和`C`都有方法H`ello()`，当`A`结构体变量访问 `Hello()`时，必须且只能通过`a.B.Hello()`或者 `a.C.Hello()`进行访问，如果使用`a.hello()`则会报错
+
+#### 嵌入基本数据类型
+
+```go
+package main
+
+import "fmt"
+
+type A struct {
+	int  // 相当于 int int，也就是相当于声明了一个名称为int、数据类型为int的字段
+  // 也就是 匿名字段的默认字段名称就是类型的名称
+  // int // 不能重复声明
+	Name string
+}
+
+func main() {
+	a := A{}
+	a.int = 10
+	fmt.Println(a.int) // 10
+}
+```
+
+#### 多重继承
+
+如果一个struct嵌套了多个匿名结构体，那么该结构体可以直接访问嵌套的匿名结构体的字段与方法，从而实现多继承。
+
+```go
+type A struct {
+	AString string
+}
+
+type B struct {
+	BString string
+}
+
+type C struct {
+	A
+	B
+	CString string
+}
+```
+
+> 尽量不使用多重继承
+
+### 接口
+
+`interface`类型可以定义一组方法，但是这些方法不需要实现，并且`interface`不可以包含任何变量。到某个自定义类型要使用的时候，通过定义所有的接口方法（也就是实现方法），来完成接口实现的效果。
+
+```go
+type 接口名 interface {
+  method1(参数列表) 返回值列表
+  method2(参数列表) 返回值列表
+}
+```
+
+**注意事项：**
+
+1. 接口本身不能创建实例，但是可以指向一个实现了该接口的自定义类型的变量
+
+2. 接口中所有的方法都没有方法体，即都是没有实现的方法
+
+3. 接口中不能含有任何变量或常量
+
+4. 在golang中，一个自定义类型需要将某个接口的所有方法都实现，我们才说这个类型实现了该接口
+
+5. 只要是自定义类型都是可以实现接口，不仅仅是结构体类型
+
+6. 一个自定义类型可以实现多个接口
+
+7. 一个接口可以继承多个别的接口，如果要实现接口`A`，那么他所继承的`B`以及`C`接口中的方法也必须实现
+
+   ```go
+   type A interface {
+     B  // A接口继承B以及C接口
+     C
+     a()
+   }
+   type B interface {
+     b()
+   }
+   type C interface {
+     c()
+   }
+   ```
+
+8. 如果接口继承之间含有相同的方法名，会报错（**go1.7不报错**）
+
+   ```go
+   type A interface {
+     B
+     C // 报错，含有两个相同的test方法
+   }
+   type B interface {
+     test()
+     b()
+   }
+   type C interface {
+     test()
+     c()
+   }
+   ```
+
+   
+
+**示例：**
+
+```go
+package main
+
+import "fmt"
+
+// Usb 定义一个接口
+type Usb interface {
+	Start() // 给接口声明两个方法 Start 和 Stop
+	Stop()
+}
+
+// Phone 定义一个手机结构体，实现Usb接口的方法
+type Phone struct {
+}
+func (p Phone) Start() {
+	fmt.Println("手机开始工作")
+}
+func (p Phone) Stop() {
+	fmt.Println("手机结束工作")
+}
+
+// Camera 定义一个相机结构体，实现Usb接口的方法
+type Camera struct {
+}
+func (c Camera) Start() {
+	fmt.Println("相机开始工作")
+}
+
+func (c Camera) Stop()  {
+	fmt.Println("相机结束工作")
+}
+
+// Computer 定义一个计算机
+type Computer struct {
+
+}
+// Working 方法接收一个Usb接口类型的变量，并调用Usb方法中的方法
+func (c Computer) Working(usb Usb) { // 这里的Usb就是多态的体现，类型上溯
+	usb.Start()
+	usb.Stop()
+}
+
+func main() {
+
+	// 在golang中，实现接口 = 定义了接口中的所有方法
+	var camera Usb = Camera{} // 多态
+	var phone Usb =  Phone{}
+	computer := Computer{}
+	computer.Working(camera)
+	computer.Working(phone)
+
+}
+```
+
+### 多态
+
+```go
+package main
+
+import "fmt"
+
+type A interface {
+	sayA()
+}
+
+type B struct {
+	Name string
+}
+
+// B 实现 A 接口
+func (b B) sayA() {
+	fmt.Println("你好 a")
+}
+
+func (b B) sayB() {
+	fmt.Println("你好 b", b.Name)
+}
+
+
+func main() {
+	// 上溯造型
+	var a A = B{"小熊"}
+	a.sayA()
+
+	// 下塑造型 (类型断言，不是类型转换，因为这个变量本身就是该类型，只是断言)
+	var b B = a.(B) // 将变量a转换为类型B，如果类型断言失败将会报错
+	b.sayB()
+}
+```
+
+**类型断言：**由于接口是一般类型，不知道具体类型，如果需要具体类型，就需要使用类型断言
+
+1. 要进行类型断言的变量本身就是这个类型，不是类型强转，类型断言只是断言类型
+
+2. 如果类型不匹配，类型断言会抛出`panic: interface conversion`
+
+3. 所以，在进行类型断言时，一定要确定类型
+
+4. 类型断言之前进行检测机制：
+
+   ```go
+   // 下塑造型 (类型断言)
+   b, ok := a.(B)
+   if ok {
+     b.sayB()
+   } else {
+     fmt.Println("类型断言失败")
+   }
+   ```
+
+5. `switch` + `类型断言`：
+
+   ```go
+   func TypeJudge(items ...interface{}) {
+   	for i, item := range items {
+   		switch item.(type) { // type 是一个关键字，代表使用case语句中的类型对item进行类型断言
+   		case bool:
+   			fmt.Printf("param %d is bool, value is %t", i, item)
+   		case float32, float64:
+   			fmt.Printf("param %d is float, value is %v", i, item)
+   		case int8, int16, int32, int64, int:
+   			fmt.Printf("param %d is int, value is %v", i, item)
+   		case nil:
+   			fmt.Printf("param %d is nil, value is %v", i, item)
+   		case string:
+   			fmt.Printf("param %d is string, value is %v", i, item)
+   		}
+   
+   	}
+   }
+   ```
+
+   
+
+
 
 ## 错误处理
 
@@ -3593,13 +3960,18 @@ func calc(c chan int, resChan chan int, exitChan chan bool) {
 
 
 
-## 系统函数
+## 反射
+
+golang的反射主要包含两个类型：`reflect.Type`和`reflect.Value`，他们主要由函数`reflect.TypeOf(变量名)`以及`reflect.ValueOf(变量名)`创建而来。其中`Type`用于表示目标变量的类型的元数据，而通过`Value`则是代表变量的值（可以对值进行修改、函数值进行函数调用等）。
+
+1. 在运行时动态获取变量的各种信息，比如变量的类型(type)、类别(kind)
+2. 如果是结构体变量，还可以获取结构体本身的信息(字段、方法)
+3. 通过反射可以修改变量的值，也可以调用关联方法
+4. 使用反射需要引入包`import "reflect"`
 
 
 
-
-
-### 字符串相关
+## 字符串处理
 
 - 统计字符串长度
 
@@ -3713,11 +4085,15 @@ func calc(c chan int, resChan chan int, exitChan chan bool) {
 
 ## module
 
-在golang中，多个方法代码会被分组到package中，而package会被分组为module中。
+Go 1.11 和 1.12 初步包含了对模块的支持，Go 的 新依赖管理系统 使依赖版本信息明确且易于管理。
 
-`go.mod`文件所在的目录会被识别为一个go moudle，在`go.mod`中，可以定义go语言环境、依赖模块等信息。依赖模块可以使第一方的模块，也可以是第三方依赖模块，第三方模块可以在go的包管理网站上查询并使用 https://pkg.go.dev/。
+### 启用go module
 
-当module有新的代码需要发布时，需要对module进行版本发布。
+```shell
+go env -w GO111MODULE=auto
+```
+
+
 
 ### 创建module
 
@@ -3772,10 +4148,14 @@ func SayHello(name string) {
 # 切换路径到模块根目录
 $ pwd
 /Users/yangsx/GoLandProjects/notes-golang/hello
-
 ```
 
-### 为module 添加第三方依赖包
+### 添加依赖
+
+```
+```
+
+
 
 
 

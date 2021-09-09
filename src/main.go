@@ -1,35 +1,52 @@
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
+
+type A interface {
+	sayA()
+}
+
+type B struct {
+	Name string
+}
+
+// B 实现 A 接口
+func (b B) sayA() {
+	fmt.Println("你好 a")
+}
+
+func (b B) sayB() {
+	fmt.Println("你好 b", b.Name)
+}
 
 func main() {
-	ch1 := make(chan int)
-	ch2 := make(chan int)
+	// 上溯造型
+	var a A = B{"小熊"}
+	a.sayA()
 
-	// 开启goroutine将0~100的数发送到ch1中
-	go func() {
-		for i := 0; i < 100; i++ {
-			ch1 <- i
+	// 下塑造型 (类型断言)
+	b, ok := a.(B)
+	if ok {
+		b.sayB()
+	} else {
+		fmt.Println("类型断言失败")
+	}
+}
+
+func TypeJudge(items ...interface{}) {
+	for i, item := range items {
+		switch item.(type) { // type 是一个关键字，代表使用case语句中的类型对item进行类型断言
+		case bool:
+			fmt.Printf("param %d is bool, value is %t", i, item)
+		case float32, float64:
+			fmt.Printf("param %d is float, value is %v", i, item)
+		case int8, int16, int32, int64, int:
+			fmt.Printf("param %d is int, value is %v", i, item)
+		case nil:
+			fmt.Printf("param %d is nil, value is %v", i, item)
+		case string:
+			fmt.Printf("param %d is string, value is %v", i, item)
 		}
-		close(ch1) // 发送完毕，通过close方法关闭通道
-	}()
 
-	// 开启goroutine从ch1中接收值，并将该值的平方发送到ch2中
-	go func() {
-		for {
-			i, ok := <-ch1 // 通道关闭后再取值ok=false
-			if !ok {
-				break
-			}
-			ch2 <- i * i
-		}
-		close(ch2) // 发送完毕关闭通道
-	}()
-
-	// 在主goroutine中从ch2中接收值打印
-	for i := range ch2 { // 通道关闭后会退出for range循环
-		fmt.Println(i)
 	}
 }
