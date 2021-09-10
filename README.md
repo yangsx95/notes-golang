@@ -1,6 +1,8 @@
 # Go
 
-[TOC]
+# A
+
+# B
 
 ## 环境搭建
 
@@ -4148,11 +4150,6 @@ func SayHello(name string) {
 # 切换路径到模块根目录
 $ pwd
 /Users/yangsx/GoLandProjects/notes-golang/hello
-```
-
-### 添加依赖
-
-```
 ```
 
 
